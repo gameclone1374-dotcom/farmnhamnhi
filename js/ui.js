@@ -6,6 +6,8 @@ export class UI {
     this.moneyEl = document.getElementById('money');
     this.harvestedEl = document.getElementById('harvested');
     this.dayEl = document.getElementById('day');
+    this.levelEl = document.getElementById('level');
+    this.expEl = document.getElementById('exp');
     this.messageEl = document.getElementById('message');
     this.seedListEl = document.getElementById('seed-list');
     this._buildSeeds(); 
@@ -42,13 +44,15 @@ export class UI {
     this.moneyEl.textContent = state.money;
     this.harvestedEl.textContent = state.harvested;
     this.dayEl.textContent = state.day;
+    if (this.levelEl) this.levelEl.textContent = state.level;
+    if (this.expEl) this.expEl.textContent = `${state.exp}/${state.level * 100}`;
   }
 
   showMessage(text) {
     this.messageEl.textContent = text;
     this.messageEl.classList.add('show');
     clearTimeout(this._t);
-    this._t = setTimeout(() => this.messageEl.classList.remove('show'), 1800);
+    this._t = setTimeout(() => this.messageEl.classList.remove('show'), 2000);
   }
 
   hideLoading() { 

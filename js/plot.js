@@ -1,20 +1,35 @@
 import * as THREE from 'three';
-import { CROPS } from './config.js';
-import { spendMoney, addMoney, incrementHarvested, saveGame } from './state.js';
+import { CROPS, getPlotUnlockRequirement } from './config.js';
+import { state, spendMoney, addMoney, addExp, incrementHarvested, saveGame } from './state.js';
 
-const plotMatEmpty = new THREE.MeshStandardMaterial({ color: 0x6b4e31, roughness: 0.85 });
-const plotMatWatered = new THREE.MeshStandardMaterial({ color: 0x4a3728, roughness: 0.8 });
+// Vật liệu cho các trạng thái đất
+const matLocked = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9, transparent: true, opacity: 0.7 });
+const matNormal = new THREE.MeshStandardMaterial({ color: 0x6b4e31, roughness: 0.85 }); // Đất thường
+const matHoed = new THREE.MeshStandardMaterial({ color: 0x543820, roughness: 0.7 });   // Đất đã cuốc (xốp)
+const matWatered = new THREE.MeshStandardMaterial({ color: 0x312214, roughness: 0.6 }); // Đất ẩm
+const matWithered = new THREE.MeshStandardMaterial({ color: 0x42352b, roughness: 0.9 });// Đất khô cằn/héo
 
 export class Plot {
   constructor(x, z, ix, iz, plotSize, parentGroup, onMessage) {
     this.ix = ix; this.iz = iz; this.x = x; this.z = z;
     this.plotSize = plotSize; this.onMessage = onMessage;
-    this.state = 'empty'; this.cropType = null;
-    this.growProgress = 0; this.stage = 0; this.watered = false;
+    
+    // Kiểm tra điều kiện mở khóa ban đầu (Hàng 0 mở sẵn, các hàng sau khóa)
+    const req = getPlotUnlockRequirement(iz, ix);
+    this.unlocked = req.unlocked;
+    this.unlockLevel = req.level;
+    this.unlockCost = req.cost;
+
+    this.state = this.unlocked ? 'normal' : 'locked'; 
+    this.cropType = null;
+    this.growProgress = 0; 
+    this.stage = 0; 
+    this.watered = false;
+    this.dryTimer = 0; // Đếm thời gian nếu không tưới sẽ bị khô cằn
 
     this.mesh = new THREE.Mesh(
       new THREE.BoxGeometry(plotSize - 0.15, 0.25, plotSize - 0.15),
-      plotMatEmpty.clone()
+      this.unlocked ? matNormal.clone() : matLocked.clone()
     );
     this.mesh.position.set(x, 0.12, z);
     this.mesh.receiveShadow = true; this.mesh.castShadow = true;
@@ -26,70 +41,163 @@ export class Plot {
     parentGroup.add(this.cropGroup);
   }
 
+  // Mở khóa ô đất
+  unlockPlot() {
+    if (this.unlocked) return false;
+    if (state.level < this.unlockLevel) {
+      this.onMessage(`Cần đạt Level ${this.unlockLevel} để mở ô này! 🔒`);
+      return false;
+    }
+    if (!spendMoney(this.unlockCost)) {
+      this.onMessage(`Không đủ tiền mở khóa! Cần ${this.unlockCost}$ 💸`);
+      return false;
+    }
+    this.unlocked = true;
+    this.state = 'normal';
+    this.mesh.material = matNormal.clone();
+    this.onMessage(`Đã mở khóa ô đất thành công! 🎉`);
+    saveGame();
+    return true;
+  }
+
+  // Cuốc đất (Chuyển từ normal sang hoed)
+  hoe() {
+    if (!this.unlocked) {
+      this.unlockPlot();
+      return false;
+    }
+    if (this.state === 'normal' || this.state === 'withered') {
+      this.state = 'hoed';
+      this.mesh.material = matHoed.clone();
+      this.onMessage('Đã cuốc đất xốp! ⛏️');
+      saveGame();
+      return true;
+    }
+    if (this.state === 'hoed') this.onMessage('Đất đã được cuốc rồi!');
+    else if (this.state === 'planted') this.onMessage('Đất đã có cây trồng!');
+    return false;
+  }
+
   plant(cropType) {
-    if (this.state !== 'empty') { this.onMessage('Ô đất đã có cây!'); return false; }
+    if (!this.unlocked) {
+      this.unlockPlot();
+      return false;
+    }
+    if (this.state === 'normal') {
+      this.onMessage('Hãy dùng cuốc (⛏️) để làm xốp đất trước!');
+      return false;
+    }
+    if (this.state !== 'hoed') { 
+      this.onMessage('Ô đất không sẵn sàng để trồng!'); 
+      return false; 
+    }
+    
     const crop = CROPS[cropType];
     if (!crop) return false;
-    if (!spendMoney(crop.cost)) { this.onMessage('Không đủ tiền! 💸'); return false; }
-    this.state = 'planted'; this.cropType = cropType;
-    this.growProgress = 0; this.stage = 0; this.watered = false;
+    if (!spendMoney(crop.cost)) { this.onMessage('Không đủ tiền mua hạt giống! 💸'); return false; }
+    
+    this.state = 'planted'; 
+    this.cropType = cropType;
+    this.growProgress = 0; 
+    this.stage = 0; 
+    this.watered = false;
+    this.dryTimer = 0;
+    
     this.updateCropVisual();
-    this.onMessage(`Đã trồng ${crop.name}!`);
+    this.onMessage(`Đã trồng ${crop.name}! Hãy tưới nước nhanh lên 💧`);
     saveGame();
     return true;
   }
 
   water() {
-    if (this.state === 'planted' && !this.watered) {
+    if (!this.unlocked) return;
+    if (this.state === 'planted' || this.state === 'withered') {
       this.watered = true;
-      this.mesh.material = plotMatWatered.clone();
-      this.onMessage('Đã tưới nước! 💧');
+      this.dryTimer = 0;
+      if (this.state === 'withered') this.state = 'planted'; // Phục hồi cây héo
+      this.mesh.material = matWatered.clone();
+      this.onMessage('Đã tưới nước! Cây đang lớn 💧');
       saveGame();
       return true;
     }
-    if (this.state === 'empty') this.onMessage('Ô đất trống!');
-    else if (this.watered) this.onMessage('Đã tưới rồi!');
-    else if (this.state === 'grown') this.onMessage('Cây đã chín, hãy thu hoạch!');
+    this.onMessage('Không có cây cần tưới ở ô này!');
     return false;
   }
 
   harvest() {
     if (this.state !== 'grown') {
       if (this.state === 'planted') this.onMessage('Cây chưa chín!');
-      else this.onMessage('Không có gì để thu!');
+      else this.onMessage('Không có gì để thu hoạch!');
       return false;
     }
     const crop = CROPS[this.cropType];
-    addMoney(crop.sell); incrementHarvested();
-    this.onMessage(`+${crop.sell}$ từ ${crop.name}! 🎉`);
-    this.reset();
+    addMoney(crop.sell); 
+    incrementHarvested();
+    const leveledUp = addExp(crop.exp);
+    
+    this.onMessage(`+${crop.sell}$ và +${crop.exp} EXP từ ${crop.name}! 🎉`);
+    if (leveledUp) {
+      this.onMessage(`🌟 CHÚC MỪNG BẠN LÊN LEVEL ${state.level}! 🌟`);
+    }
+
+    this.resetToNormal();
     saveGame();
     return true;
   }
 
-  reset() {
-    this.state = 'empty'; this.cropType = null;
-    this.growProgress = 0; this.stage = 0; this.watered = false;
-    this.mesh.material = plotMatEmpty.clone();
+  resetToNormal() {
+    this.state = 'normal'; 
+    this.cropType = null;
+    this.growProgress = 0; 
+    this.stage = 0; 
+    this.watered = false;
+    this.dryTimer = 0;
+    this.mesh.material = matNormal.clone();
     this.clearCropVisual();
   }
 
   update(dt) {
-    if (this.state !== 'planted' || !this.watered) return;
+    if (!this.unlocked || this.state !== 'planted') return;
+    
     const crop = CROPS[this.cropType];
-    this.growProgress += dt;
-    const progress = Math.min(1, this.growProgress / crop.growTime);
-    const newStage = Math.floor(progress * crop.stages);
-    if (newStage !== this.stage) { this.stage = newStage; this.updateCropVisual(); }
-    if (progress >= 1) { this.state = 'grown'; this.updateCropVisual(); }
+    
+    if (this.watered) {
+      // Cây lớn khi được tưới
+      this.growProgress += dt;
+      const progress = Math.min(1, this.growProgress / crop.growTime);
+      const newStage = Math.floor(progress * crop.stages);
+      if (newStage !== this.stage) { 
+        this.stage = newStage; 
+        this.updateCropVisual(); 
+      }
+      if (progress >= 1) { 
+        this.state = 'grown'; 
+        this.updateCropVisual(); 
+      }
+    } else {
+      // Cơ chế đất khô cằn: Quá 15 giây không tưới, cây sẽ bị héo (chậm lớn / đứng hình)
+      this.dryTimer += dt;
+      if (this.dryTimer > 15 && this.state !== 'withered') {
+        this.state = 'withered';
+        this.mesh.material = matWithered.clone();
+        this.onMessage(`Đất bị khô cằn! Cây ${crop.name} đang héo vì thiếu nước! 🌵`);
+      }
+    }
   }
 
   restoreState(data, elapsedSeconds) {
+    this.unlocked = data.unlocked;
     this.state = data.state;
     this.cropType = data.cropType;
     this.growProgress = data.growProgress;
     this.stage = data.stage;
     this.watered = data.watered;
+    this.dryTimer = data.dryTimer || 0;
+
+    if (!this.unlocked) {
+      this.mesh.material = matLocked.clone();
+      return;
+    }
 
     if (this.state === 'planted' && this.watered && this.cropType) {
       const crop = CROPS[this.cropType];
@@ -101,7 +209,12 @@ export class Plot {
       }
     }
 
-    this.mesh.material = this.watered ? plotMatWatered.clone() : plotMatEmpty.clone();
+    // Phục hồi màu vật liệu ô đất
+    if (this.state === 'hoed') this.mesh.material = matHoed.clone();
+    else if (this.state === 'withered') this.mesh.material = matWithered.clone();
+    else if (this.watered) this.mesh.material = matWatered.clone();
+    else this.mesh.material = matNormal.clone();
+
     this.updateCropVisual();
   }
 
@@ -116,7 +229,7 @@ export class Plot {
 
   updateCropVisual() {
     this.clearCropVisual();
-    if (!this.cropType) return;
+    if (!this.cropType || this.state === 'withered') return;
     const crop = CROPS[this.cropType];
     const color = new THREE.Color(crop.color);
     const stage = this.stage, maxStage = crop.stages;
