@@ -1,209 +1,59 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
+/* Giữ nguyên các style cũ và bổ sung thêm: */
+#player-avatar-container {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #ffcc00;
   overflow: hidden;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: #87CEEB;
-  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  z-index: 100;
+  transition: transform 0.2s;
 }
-
-#game-container {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
+#player-avatar-container:hover {
+  transform: scale(1.08);
 }
-
-canvas {
-  display: block;
+#player-avatar {
   width: 100%;
   height: 100%;
-  touch-action: none;
+  object-fit: cover;
 }
 
-#ui {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+/* Modal Bảng Cài đặt */
+#settings-modal {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  opacity: 0;
   pointer-events: none;
-  z-index: 10;
+  transition: opacity 0.3s ease;
 }
-
-#ui > * {
+#settings-modal.show {
+  opacity: 1;
   pointer-events: auto;
 }
-
-.panel {
-  background: rgba(20, 40, 20, 0.85);
-  backdrop-filter: blur(8px);
-  border: 2px solid #4a7c3f;
-  border-radius: 12px;
-  padding: 12px 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-}
-
-#top-bar {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-#stats {
-  display: flex;
-  gap: 16px;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-#stats span {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-#tools {
-  display: flex;
-  gap: 6px;
-}
-
-.tool-btn {
-  background: #2d5a27;
-  border: 2px solid #5a9c4f;
-  color: #fff;
-  padding: 8px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: all 0.15s;
-}
-
-.tool-btn:hover, .tool-btn:active {
-  background: #3d7a37;
-}
-
-.tool-btn.active {
-  background: #5a9c4f;
-  border-color: #8fd47f;
-  box-shadow: 0 0 12px rgba(90, 156, 79, 0.6);
-}
-
-#instructions {
-  position: absolute;
-  bottom: 12px;
-  left: 12px;
-  max-width: 300px;
-  font-size: 12px;
-  line-height: 1.45;
-  opacity: 0.95;
-}
-
-#instructions h3 {
-  margin-bottom: 5px;
-  color: #a8e6a0;
-  font-size: 14px;
-}
-
-#message {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.78);
-  padding: 14px 24px;
-  border-radius: 12px;
-  font-size: 18px;
-  font-weight: 700;
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
+.modal-content {
+  background: #fff;
+  padding: 25px;
+  border-radius: 15px;
+  width: 320px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
   text-align: center;
-  z-index: 20;
+  font-family: sans-serif;
 }
-
-#message.show {
-  opacity: 1;
-}
-
-#crop-info {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
-  min-width: 160px;
-  font-size: 13px;
-}
-
-#crop-info h4 {
-  color: #a8e6a0;
-  margin-bottom: 6px;
-}
-
-.seed-btn {
-  display: block;
-  width: 100%;
-  margin: 4px 0;
-  padding: 7px 10px;
-  background: #3d6b35;
-  border: 1px solid #5a9c4f;
-  color: #fff;
-  border-radius: 6px;
-  cursor: pointer;
-  text-align: left;
-  font-size: 12px;
-}
-
-.seed-btn:active {
-  background: #4d8b45;
-}
-
-.seed-btn.selected {
-  background: #5a9c4f;
-  border-color: #8fd47f;
-}
-
-#loading {
-  position: absolute;
-  inset: 0;
-  background: #1a3a1a;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  transition: opacity 0.5s;
-}
-
-#loading.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.loader {
-  width: 44px;
-  height: 44px;
-  border: 4px solid #4a7c3f;
-  border-top-color: #8fd47f;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 14px;
-}
-
-.loading-text {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+.modal-content h3 { margin-top: 0; color: #333; }
+.setting-group { margin: 15px 0; text-align: left; }
+.setting-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; color: #555; }
+.setting-group input[type="range"] { width: 100%; }
+.graphics-btns { display: flex; gap: 8px; }
+.graphics-btn { flex: 1; padding: 8px; border: 1px solid #ccc; background: #f0f0f0; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.graphics-btn.active { background: #4CAF50; color: #fff; border-color: #4CAF50; }
+.close-modal-btn { margin-top: 15px; background: #e74c3c; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; }
