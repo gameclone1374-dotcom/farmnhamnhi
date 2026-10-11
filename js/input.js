@@ -22,13 +22,11 @@ export class Input {
       if (obj && obj.userData.plot) {
         const plot = obj.userData.plot;
         
-        // Nếu ô đất chưa mở khóa, bấm vào để thực hiện mở khóa
         if (!plot.unlocked) {
           plot.unlockPlot();
           break;
         }
 
-        // Tương tác theo công cụ đang chọn
         if (state.tool === 'hoe') plot.hoe();
         else if (state.tool === 'plant') plot.plant(state.selectedCrop);
         else if (state.tool === 'water') plot.water();

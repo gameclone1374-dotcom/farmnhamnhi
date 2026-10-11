@@ -53,8 +53,8 @@ export class GameScene {
     this.sun.position.set(20, 30, 15); this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(CONFIG.renderer.shadowMapSize, CONFIG.renderer.shadowMapSize);
     this.sun.shadow.camera.near = 1; this.sun.shadow.camera.far = 80;
-    this.sun.shadow.camera.left = -30; this.sun.shadow.camera.right = 30;
-    this.sun.shadow.camera.top = 30; this.sun.shadow.camera.bottom = -30;
+    this.sun.shadow.camera.left = -35; this.sun.shadow.camera.right = 35;
+    this.sun.shadow.camera.top = 35; this.sun.shadow.camera.bottom = -35;
     this.sun.shadow.bias = -0.001; this.scene.add(this.sun);
     this.scene.add(new THREE.HemisphereLight(0x87CEEB, 0x3d7a37, 0.35));
   }
@@ -66,7 +66,7 @@ export class GameScene {
     );
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; this.scene.add(ground);
 
-    const path = new THREE.Mesh(new THREE.PlaneGeometry(4, 50), new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.9 }));
+    const path = new THREE.Mesh(new THREE.PlaneGeometry(4, 70), new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.9 }));
     path.rotation.x = -Math.PI / 2; path.position.y = 0.01; path.receiveShadow = true; this.scene.add(path);
 
     this._createFence(); this._createTrees(); this._createBarn();
@@ -76,24 +76,24 @@ export class GameScene {
     const g = new THREE.Group();
     const postMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
     const railMat = new THREE.MeshStandardMaterial({ color: 0x6b4423 });
-    for (let i = -12; i <= 12; i += 2) {
-      for (const z of [-12, 12]) {
+    for (let i = -16; i <= 16; i += 2) {
+      for (const z of [-16, 16]) {
         const p = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.2, 0.15), postMat);
         p.position.set(i, 0.6, z); p.castShadow = true; g.add(p);
       }
-      for (const x of [-12, 12]) {
-        if (Math.abs(i) === 12) continue;
+      for (const x of [-16, 16]) {
+        if (Math.abs(i) === 16) continue;
         const p = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.2, 0.15), postMat);
         p.position.set(x, 0.6, i); p.castShadow = true; g.add(p);
       }
     }
-    for (const z of [-12, 12]) {
-      const r = new THREE.Mesh(new THREE.BoxGeometry(24.3, 0.1, 0.08), railMat);
+    for (const z of [-16, 16]) {
+      const r = new THREE.Mesh(new THREE.BoxGeometry(32.3, 0.1, 0.08), railMat);
       r.position.set(0, 0.9, z); g.add(r);
       const r2 = r.clone(); r2.position.y = 0.5; g.add(r2);
     }
-    for (const x of [-12, 12]) {
-      const r = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 24.3), railMat);
+    for (const x of [-16, 16]) {
+      const r = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 32.3), railMat);
       r.position.set(x, 0.9, 0); g.add(r);
       const r2 = r.clone(); r2.position.y = 0.5; g.add(r2);
     }
@@ -101,14 +101,12 @@ export class GameScene {
   }
 
   _createTrees() {
-    [[-16,-10],[-15,8],[15,-9],[16,7],[-10,-16],[8,-15],[-8,16],[10,15]].forEach(([x,z]) => {
+    [[-20,-14],[-20,12],[20,-14],[20,12],[-14,-20],[12,-20],[-12,20],[14,20]].forEach(([x,z]) => {
       const g = new THREE.Group();
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.8, 8), new THREE.MeshStandardMaterial({ color: 0x5c4033 }));
       trunk.position.y = 0.9; trunk.castShadow = true; g.add(trunk);
       const leaves = new THREE.Mesh(new THREE.SphereGeometry(1.4, 8, 6), new THREE.MeshStandardMaterial({ color: 0x2d6b2d }));
       leaves.position.y = 2.4; leaves.castShadow = true; g.add(leaves);
-      const leaves2 = new THREE.Mesh(new THREE.SphereGeometry(1.0, 8, 6), new THREE.MeshStandardMaterial({ color: 0x3d8b3d }));
-      leaves2.position.set(0.5, 2.8, 0.3); leaves2.castShadow = true; g.add(leaves2);
       g.position.set(x, 0, z); this.scene.add(g);
     });
   }
@@ -119,9 +117,7 @@ export class GameScene {
     body.position.y = 1.75; body.castShadow = true; body.receiveShadow = true; barn.add(body);
     const roof = new THREE.Mesh(new THREE.ConeGeometry(3.8, 2, 4), new THREE.MeshStandardMaterial({ color: 0x5c4033 }));
     roof.position.y = 4.5; roof.rotation.y = Math.PI / 4; roof.castShadow = true; barn.add(roof);
-    const door = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.2, 0.1), new THREE.MeshStandardMaterial({ color: 0x3d2b1f }));
-    door.position.set(0, 1.1, 2.05); barn.add(door);
-    barn.position.set(-8, 0, -8); this.scene.add(barn);
+    barn.position.set(-12, 0, -12); this.scene.add(barn);
   }
 
   _createFarmPlots() {
@@ -148,8 +144,8 @@ export class GameScene {
 
   updateDayNight(t) {
     const sunAngle = t * Math.PI * 2 - Math.PI / 2;
-    this.sun.position.x = Math.cos(sunAngle) * 25;
-    this.sun.position.y = Math.sin(sunAngle) * 30 + 5;
+    this.sun.position.x = Math.cos(sunAngle) * 30;
+    this.sun.position.y = Math.sin(sunAngle) * 35 + 5;
     this.sun.position.z = 15;
     const intensity = Math.max(0.15, Math.sin(sunAngle) * 0.9 + 0.3);
     this.sun.intensity = intensity;

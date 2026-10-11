@@ -6,7 +6,7 @@ export const state = {
   day: CONFIG.start.day,
   level: CONFIG.start.level,
   exp: CONFIG.start.exp,
-  tool: 'plant', // 'plant', 'hoe', 'water', 'harvest'
+  tool: 'plant', // Công cụ hiện tại ('hoe', 'plant', 'water', 'harvest')
   selectedCrop: 'wheat',
   plots: [],
   time: 0,
@@ -31,7 +31,8 @@ export function addExp(amount) {
   if (state.exp >= nextLevelExp) {
     state.exp -= nextLevelExp;
     state.level += 1;
-    return true; // Báo hiệu lên cấp
+    saveGame();
+    return true; // Lên cấp thành công
   }
   saveGame();
   return false;

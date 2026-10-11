@@ -2,19 +2,18 @@ import * as THREE from 'three';
 import { CROPS, getPlotUnlockRequirement } from './config.js';
 import { state, spendMoney, addMoney, addExp, incrementHarvested, saveGame } from './state.js';
 
-// Vật liệu cho các trạng thái đất
+// Định nghĩa màu sắc vật liệu cho các trạng thái đất
 const matLocked = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9, transparent: true, opacity: 0.7 });
 const matNormal = new THREE.MeshStandardMaterial({ color: 0x6b4e31, roughness: 0.85 }); // Đất thường
-const matHoed = new THREE.MeshStandardMaterial({ color: 0x543820, roughness: 0.7 });   // Đất đã cuốc (xốp)
+const matHoed = new THREE.MeshStandardMaterial({ color: 0x543820, roughness: 0.7 });   // Đất đã cuốc
 const matWatered = new THREE.MeshStandardMaterial({ color: 0x312214, roughness: 0.6 }); // Đất ẩm
-const matWithered = new THREE.MeshStandardMaterial({ color: 0x42352b, roughness: 0.9 });// Đất khô cằn/héo
+const matWithered = new THREE.MeshStandardMaterial({ color: 0x42352b, roughness: 0.9 });// Đất khô héo
 
 export class Plot {
   constructor(x, z, ix, iz, plotSize, parentGroup, onMessage) {
     this.ix = ix; this.iz = iz; this.x = x; this.z = z;
     this.plotSize = plotSize; this.onMessage = onMessage;
     
-    // Kiểm tra điều kiện mở khóa ban đầu (Hàng 0 mở sẵn, các hàng sau khóa)
     const req = getPlotUnlockRequirement(iz, ix);
     this.unlocked = req.unlocked;
     this.unlockLevel = req.level;
@@ -25,7 +24,7 @@ export class Plot {
     this.growProgress = 0; 
     this.stage = 0; 
     this.watered = false;
-    this.dryTimer = 0; // Đếm thời gian nếu không tưới sẽ bị khô cằn
+    this.dryTimer = 0;
 
     this.mesh = new THREE.Mesh(
       new THREE.BoxGeometry(plotSize - 0.15, 0.25, plotSize - 0.15),
@@ -41,7 +40,6 @@ export class Plot {
     parentGroup.add(this.cropGroup);
   }
 
-  // Mở khóa ô đất
   unlockPlot() {
     if (this.unlocked) return false;
     if (state.level < this.unlockLevel) {
@@ -49,7 +47,7 @@ export class Plot {
       return false;
     }
     if (!spendMoney(this.unlockCost)) {
-      this.onMessage(`Không đủ tiền mở khóa! Cần ${this.unlockCost}$ 💸`);
+      this.onMessage(`Không đủ tiền! Cần ${this.unlockCost}$ 💸`);
       return false;
     }
     this.unlocked = true;
@@ -60,7 +58,6 @@ export class Plot {
     return true;
   }
 
-  // Cuốc đất (Chuyển từ normal sang hoed)
   hoe() {
     if (!this.unlocked) {
       this.unlockPlot();
@@ -84,7 +81,7 @@ export class Plot {
       return false;
     }
     if (this.state === 'normal') {
-      this.onMessage('Hãy dùng cuốc (⛏️) để làm xốp đất trước!');
+      this.onMessage('Hãy dùng cuốc (⛏️) làm xốp đất trước!');
       return false;
     }
     if (this.state !== 'hoed') { 
@@ -114,7 +111,7 @@ export class Plot {
     if (this.state === 'planted' || this.state === 'withered') {
       this.watered = true;
       this.dryTimer = 0;
-      if (this.state === 'withered') this.state = 'planted'; // Phục hồi cây héo
+      if (this.state === 'withered') this.state = 'planted';
       this.mesh.material = matWatered.clone();
       this.onMessage('Đã tưới nước! Cây đang lớn 💧');
       saveGame();
@@ -162,7 +159,6 @@ export class Plot {
     const crop = CROPS[this.cropType];
     
     if (this.watered) {
-      // Cây lớn khi được tưới
       this.growProgress += dt;
       const progress = Math.min(1, this.growProgress / crop.growTime);
       const newStage = Math.floor(progress * crop.stages);
@@ -175,12 +171,12 @@ export class Plot {
         this.updateCropVisual(); 
       }
     } else {
-      // Cơ chế đất khô cằn: Quá 15 giây không tưới, cây sẽ bị héo (chậm lớn / đứng hình)
+      // Đất khô cằn sau 15 giây không tưới
       this.dryTimer += dt;
       if (this.dryTimer > 15 && this.state !== 'withered') {
         this.state = 'withered';
         this.mesh.material = matWithered.clone();
-        this.onMessage(`Đất bị khô cằn! Cây ${crop.name} đang héo vì thiếu nước! 🌵`);
+        this.onMessage(`Đất khô cằn! Cây ${crop.name} đang héo! 🌵`);
       }
     }
   }
@@ -209,7 +205,6 @@ export class Plot {
       }
     }
 
-    // Phục hồi màu vật liệu ô đất
     if (this.state === 'hoed') this.mesh.material = matHoed.clone();
     else if (this.state === 'withered') this.mesh.material = matWithered.clone();
     else if (this.watered) this.mesh.material = matWatered.clone();
