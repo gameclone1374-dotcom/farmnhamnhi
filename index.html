@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Nông Trại 3D - Hoàn Chỉnh Tính Năng</title>
+  <title>Nông Trại 3D - Modular Stable</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -12,40 +12,13 @@
       <div class="loader"></div>
       <div class="loading-text">Đang tải Nông Trại 3D...</div>
     </div>
-
-    <!-- Avatar Người chơi ở góc trên bên trái -->
-    <div id="player-avatar-container" title="Bấm để mở Cài đặt">
-      <!-- Ảnh avatar mẫu (có thể thay thế link ảnh của bạn) -->
-      <img id="player-avatar" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Avatar">
-    </div>
-
-    <!-- Bảng Cài đặt Modal -->
-    <div id="settings-modal">
-      <div class="modal-content">
-        <h3>⚙️ Cài đặt Trò chơi</h3>
-        <div class="setting-group">
-          <label>🔊 Âm lượng Game</label>
-          <input type="range" id="volume-slider" min="0" max="100" value="80">
-        </div>
-        <div class="setting-group">
-          <label>🖥️ Độ phân giải / Đồ họa</label>
-          <div class="graphics-btns">
-            <button class="graphics-btn" data-quality="low">Thấp</button>
-            <button class="graphics-btn active" data-quality="medium">Trung bình</button>
-            <button class="graphics-btn" data-quality="high">Cao</button>
-          </div>
-        </div>
-        <button class="close-modal-btn" id="close-modal">Đóng</button>
-      </div>
-    </div>
-
     <div id="ui">
       <div id="top-bar">
         <div id="stats" class="panel">
           <span>💰 <span id="money">500</span></span>
           <span>⭐ Lv.<span id="level">1</span> (<span id="exp">0/100</span>)</span>
           <span>🌱 <span id="harvested">0</span></span>
-          <span>⏱️ Ngày <span id="day">1</span> (<span id="game-time">06:00</span>)</span>
+          <span>⏱️ Ngày <span id="day">1</span></span>
         </div>
         <div id="tools" class="panel">
           <button class="tool-btn" data-tool="hoe">⛏️ Cuốc</button>
@@ -58,7 +31,7 @@
         <h3>🌾 Hướng dẫn</h3>
         • Kéo để xoay camera<br>
         • Chạm ô đất để mở khóa / tương tác<br>
-        • Bấm Avatar góc trái để mở Cài đặt
+        • Cuốc → Trồng → Tưới → Thu hoạch
       </div>
       <div id="crop-info" class="panel">
         <h4>Hạt giống</h4>
@@ -96,37 +69,6 @@
 
     const weatherManager = new WeatherManager((weather) => {});
 
-    // Xử lý bật/tắt bảng Cài đặt khi bấm vào Avatar
-    const avatarContainer = document.getElementById('player-avatar-container');
-    const settingsModal = document.getElementById('settings-modal');
-    const closeModalBtn = document.getElementById('close-modal');
-
-    avatarContainer.addEventListener('click', () => {
-      settingsModal.classList.add('show');
-    });
-    closeModalBtn.addEventListener('click', () => {
-      settingsModal.classList.remove('show');
-    });
-
-    // Xử lý tùy chọn chất lượng đồ họa
-    document.querySelectorAll('.graphics-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.graphics-btn').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        const quality = e.target.dataset.quality;
-        if (quality === 'low') {
-          gameScene.renderer.setPixelRatio(0.75);
-          ui.showMessage('Đã chuyển đồ họa sang mức: Thấp ⚡');
-        } else if (quality === 'medium') {
-          gameScene.renderer.setPixelRatio(1);
-          ui.showMessage('Đã chuyển đồ họa sang mức: Trung bình 💻');
-        } else if (quality === 'high') {
-          gameScene.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-          ui.showMessage('Đã chuyển đồ họa sang mức: Cao 🌟');
-        }
-      });
-    });
-
     let lastTime = performance.now();
 
     function animate(now) {
@@ -134,23 +76,11 @@
       const dt = Math.min((now - lastTime) / 1000, 0.1);
       lastTime = now;
 
-      const dayProgress = gameTime.update(dt, (timeStr) => {
-        const timeEl = document.getElementById('game-time');
-        if (timeEl) timeEl.textContent = timeStr;
-      });
-      
+      const dayProgress = gameTime.update(dt, () => ui.update());
       weatherManager.update(dt, gameScene.plotsGroup.children.map(p => p.userData.plot).filter(Boolean), msg => ui.showMessage(msg));
 
       gameScene.updateDayNight(dayProgress);
       
-      // Mô phỏng cánh cổng tự động mở/đóng dựa theo vị trí camera hoặc thời gian/khoảng cách gần
-      const camPos = gameScene.camera.position;
-      const distToGate = Math.sqrt(Math.pow(camPos.x - 0, 2) + Math.pow(camPos.z - 16, 2));
-      if (gameScene.setGateOpen) {
-        // Nếu camera lại gần cổng (< 12 đơn vị), cổng tự động mở
-        gameScene.setGateOpen(distToGate < 12);
-      }
-
       for (const plotObj of gameScene.plotsGroup.children) {
         if (plotObj.userData && plotObj.userData.plot) {
           plotObj.userData.plot.update(dt);
