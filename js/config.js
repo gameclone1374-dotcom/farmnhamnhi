@@ -1,10 +1,9 @@
 export const CONFIG = {
   camera: { fov: 50, near: 0.1, far: 200, position: [18, 18, 18], minDistance: 8, maxDistance: 50, maxPolarAngle: Math.PI / 2.2 },
   renderer: { antialias: true, shadowMapSize: 1024, toneMappingExposure: 1.1 },
-  world: { groundSize: 80, fogNear: 50, fogFar: 110, dayLength: 3600 },
+  world: { groundSize: 80, fogNear: 50, fogFar: 110, dayLength: 3600 }, // 1 ngày = 3600 giây (1 giờ)
   farm: { gridSize: 9, plotSize: 2.0 },
   start: { money: 500, harvested: 0, day: 1, level: 1, exp: 0 },
-  // Phân tách rõ thư mục cho Player và NPC
   assetsPath: {
     glb: 'assets/models/glb/',
     obj: 'assets/models/obj/',

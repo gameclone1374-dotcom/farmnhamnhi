@@ -9,7 +9,7 @@ const gltfLoader = new GLTFLoader();
 const objLoader = new OBJLoader();
 const fbxLoader = new FBXLoader();
 
-const matLocked = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9, transparent: true, opacity: 0.7 });
+const matLocked = new THREE.MeshStandardMaterial({ color: 0x2b2520, roughness: 0.95, metalness: 0.1 });
 const matNormal = new THREE.MeshStandardMaterial({ color: 0x6b4e31, roughness: 0.85 });
 const matHoed = new THREE.MeshStandardMaterial({ color: 0x543820, roughness: 0.7 });
 const matWatered = new THREE.MeshStandardMaterial({ color: 0x312214, roughness: 0.6 });
@@ -223,7 +223,6 @@ export class Plot {
     const format = crop.format || 'glb';
     const folder = CONFIG.assetsPath[format] || CONFIG.assetsPath.glb;
     const fileUrl = folder + crop.modelName + '.' + format;
-
     const scaleFactor = 0.4 + (this.stage / crop.stages) * 0.6;
 
     if (format === 'glb') {
@@ -241,7 +240,7 @@ export class Plot {
       }, undefined, () => { this._createFallbackVisual(crop, this.stage, crop.stages); });
     } else if (format === 'fbx') {
       fbxLoader.load(fileUrl, (fbx) => {
-        fbx.scale.set(scaleFactor * 0.01, scaleFactor * 0.01, scaleFactor * 0.01); // FBX thường có scale lớn
+        fbx.scale.set(scaleFactor * 0.01, scaleFactor * 0.01, scaleFactor * 0.01);
         fbx.traverse(node => { if (node.isMesh) node.castShadow = true; });
         this.cropGroup.add(fbx);
       }, undefined, () => { this._createFallbackVisual(crop, this.stage, crop.stages); });

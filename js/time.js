@@ -4,7 +4,7 @@ import { state, saveGame } from './state.js';
 export class GameTime {
   constructor(onNewDay) {
     this.onNewDay = onNewDay;
-    this.dayLength = CONFIG.world.dayLength; // 3600 giây = 1 giờ thực tế = 24h trong game
+    this.dayLength = CONFIG.world.dayLength;
     this.saveIntervalTimer = 0;
   }
 
@@ -22,20 +22,11 @@ export class GameTime {
     
     if (newDay !== state.day) {
       state.day = newDay;
+      if (uiUpdateCallback) uiUpdateCallback();
       if (this.onNewDay) this.onNewDay(state.day);
       saveGame();
     }
 
-    if (uiUpdateCallback) uiUpdateCallback(this.getFormattedTime(dayProgress));
-
     return dayProgress;
-  }
-
-  // Chuyển tiến trình ngày (0 đến 1) thành giờ:phút định dạng 24h (00:00 đến 23:59)
-  getFormattedTime(progress) {
-    const totalMinutes = Math.floor(progress * 24 * 60);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   }
 }

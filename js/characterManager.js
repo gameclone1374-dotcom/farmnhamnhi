@@ -11,7 +11,6 @@ export class CharacterManager {
     this.characters = new Map();
   }
 
-  // type nhận giá trị 'player' hoặc 'npc' để trỏ đúng thư mục tương ứng
   loadCharacter(id, name, modelFileName, type = 'npc', position = { x: 0, y: 0, z: 0 }, scale = 1) {
     const folder = type === 'player' ? CONFIG.assetsPath.player : CONFIG.assetsPath.npc;
     const fileUrl = folder + modelFileName;
@@ -42,7 +41,6 @@ export class CharacterManager {
       },
       undefined,
       (error) => {
-        console.warn(`Không tìm thấy file model cho ${name} ở thư mục ${type}, dùng hình khối tạm thời.`, error);
         this._createFallbackCharacter(id, name, type, position);
       }
     );
@@ -50,8 +48,6 @@ export class CharacterManager {
 
   _createFallbackCharacter(id, name, type, position) {
     const group = new THREE.Group();
-    
-    // Phân biệt màu sắc giữa Player (Xanh dương) và NPC (Cam/Vàng) để dễ nhận diện
     const color = type === 'player' ? 0x2980b9 : 0xe67e22;
     const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.7 });
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.2, 8), bodyMat);
@@ -75,15 +71,11 @@ export class CharacterManager {
       mixer: null,
       animations: []
     });
-
-    if (this.onMessage) this.onMessage(`Đã tạo hình khối tạm cho ${type}: ${name} 👤`);
   }
 
   update(dt) {
     this.characters.forEach((char) => {
-      if (char.mixer) {
-        char.mixer.update(dt);
-      }
+      if (char.mixer) char.mixer.update(dt);
     });
   }
 }

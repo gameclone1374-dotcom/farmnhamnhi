@@ -1,9 +1,9 @@
 export class WeatherManager {
   constructor(onWeatherChange) {
     this.onWeatherChange = onWeatherChange;
-    this.currentWeather = 'sunny'; // 'sunny', 'rainy', 'drought'
+    this.currentWeather = 'sunny';
     this.timer = 0;
-    this.changeInterval = 180; // Cứ mỗi 3 phút (180 giây) thay đổi thời tiết ngẫu nhiên
+    this.changeInterval = 180;
   }
 
   update(dt, plots, onMessage) {
@@ -22,8 +22,6 @@ export class WeatherManager {
     } else if (rand < 0.8) {
       this.currentWeather = 'rainy';
       if (onMessage) onMessage('Thời tiết: Trời mưa! Đất đã được tự động tưới nước 🌧️💧');
-      
-      // Trời mưa tự động tưới nước cho tất cả các ô đất đang trồng cây
       plots.forEach(plot => {
         if (plot.state === 'planted' && !plot.watered) {
           plot.water();

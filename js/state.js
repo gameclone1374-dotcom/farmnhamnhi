@@ -6,7 +6,7 @@ export const state = {
   day: CONFIG.start.day,
   level: CONFIG.start.level,
   exp: CONFIG.start.exp,
-  tool: 'plant', // Công cụ hiện tại ('hoe', 'plant', 'water', 'harvest')
+  tool: 'plant',
   selectedCrop: 'wheat',
   plots: [],
   time: 0,
@@ -32,7 +32,7 @@ export function addExp(amount) {
     state.exp -= nextLevelExp;
     state.level += 1;
     saveGame();
-    return true; // Lên cấp thành công
+    return true;
   }
   saveGame();
   return false;
@@ -56,7 +56,7 @@ export function saveGame() {
       ix: p.ix,
       iz: p.iz,
       unlocked: p.unlocked,
-      state: p.state, // 'locked', 'normal', 'hoed', 'planted', 'grown', 'withered'
+      state: p.state,
       cropType: p.cropType,
       growProgress: p.growProgress,
       stage: p.stage,
