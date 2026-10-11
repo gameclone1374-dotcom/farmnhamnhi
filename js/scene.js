@@ -76,8 +76,11 @@ export class GameScene {
     const g = new THREE.Group();
     const postMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
     const railMat = new THREE.MeshStandardMaterial({ color: 0x6b4423 });
+    
     for (let i = -16; i <= 16; i += 2) {
+      // Chừa khoảng trống ở z = 16 (từ x = -2 đến x = 2) làm lối đi có cổng
       for (const z of [-16, 16]) {
+        if (z === 16 && Math.abs(i) <= 2) continue; 
         const p = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.2, 0.15), postMat);
         p.position.set(i, 0.6, z); p.castShadow = true; g.add(p);
       }
@@ -88,16 +91,50 @@ export class GameScene {
       }
     }
     for (const z of [-16, 16]) {
-      const r = new THREE.Mesh(new THREE.BoxGeometry(32.3, 0.1, 0.08), railMat);
-      r.position.set(0, 0.9, z); g.add(r);
-      const r2 = r.clone(); r2.position.y = 0.5; g.add(r2);
+      if (z === 16) {
+        // Thanh rào trái và phải chừa cổng ở giữa
+        const rLeft = new THREE.Mesh(new THREE.BoxGeometry(14, 0.1, 0.08), railMat);
+        rLeft.position.set(-9.5, 0.9, z); g.add(rLeft);
+        const rLeft2 = rLeft.clone(); rLeft2.position.y = 0.5; g.add(rLeft2);
+
+        const rRight = new THREE.Mesh(new THREE.BoxGeometry(14, 0.1, 0.08), railMat);
+        rRight.position.set(9.5, 0.9, z); g.add(rRight);
+        const rRight2 = rRight.clone(); rRight2.position.y = 0.5; g.add(rRight2);
+      } else {
+        const r = new THREE.Mesh(new THREE.BoxGeometry(32.3, 0.1, 0.08), railMat);
+        r.position.set(0, 0.9, z); g.add(r);
+        const r2 = r.clone(); r2.position.y = 0.5; g.add(r2);
+      }
     }
     for (const x of [-16, 16]) {
       const r = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 32.3), railMat);
       r.position.set(x, 0.9, 0); g.add(r);
       const r2 = r.clone(); r2.position.y = 0.5; g.add(r2);
     }
+
+    // Tạo Cánh cổng tự động ở lối vào (z = 16)
+    this.gateGroup = new THREE.Group();
+    this.gateGroup.position.set(-2, 0, 16); // Trục bản lề bên trái cổng
+    const gateBar1 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, 0.1), railMat);
+    gateBar1.position.set(2, 0.9, 0); gateBar1.castShadow = true; this.gateGroup.add(gateBar1);
+    const gateBar2 = gateBar1.clone(); gateBar2.position.y = 0.5; this.gateGroup.add(gateBar2);
+    
+    // Các thanh dọc cổng
+    for(let gx = 1; gx < 4; gx += 1.5) {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.08), postMat);
+      p.position.set(gx, 0.7, 0); this.gateGroup.add(p);
+    }
+    g.add(this.gateGroup);
+
     this.scene.add(g);
+  }
+
+  // Hiệu ứng mở/đóng cổng tự động
+  setGateOpen(isOpen) {
+    if (!this.gateGroup) return;
+    const targetRotation = isOpen ? Math.PI / 1.8 : 0;
+    // Xoay mượt cánh cổng
+    this.gateGroup.rotation.y = THREE.MathUtils.lerp(this.gateGroup.rotation.y, targetRotation, 0.1);
   }
 
   _createTrees() {
