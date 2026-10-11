@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Nông Trại 3D - Mở rộng Đất đai</title>
+  <title>Nông Trại 3D - Modular Weather System</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -31,7 +31,8 @@
         <h3>🌾 Hướng dẫn</h3>
         • Kéo để xoay camera<br>
         • Chạm ô đất để mở khóa / tương tác<br>
-        • Cuốc → Trồng → Tưới → Thu hoạch
+        • Cuốc → Trồng → Tưới → Thu hoạch<br>
+        • <i>Trời mưa sẽ tự động tưới nước!</i>
       </div>
       <div id="crop-info" class="panel">
         <h4>Hạt giống</h4>
@@ -51,43 +52,49 @@
   </script>
 
   <script type="module">
-    import { state, saveGame } from './js/state.js';
+    import { saveGame } from './js/state.js';
     import { GameScene } from './js/scene.js';
     import { UI } from './js/ui.js';
     import { Input } from './js/input.js';
+    import { GameTime } from './js/time.js';
+    import { WeatherManager } from './js/weather.js';
 
     const container = document.getElementById('game-container');
     const ui = new UI();
     const gameScene = new GameScene(container, msg => ui.showMessage(msg));
     new Input(gameScene.camera, gameScene.plotsGroup, gameScene.domElement);
 
+    // Khởi tạo module quản lý thời gian
+    const gameTime = new GameTime((day) => {
+      ui.showMessage(`Chào buổi sáng! Ngày ${day} ☀️`);
+    });
+
+    // Khởi tạo module quản lý thời tiết
+    const weatherManager = new WeatherManager((weather) => {
+      console.log('Trạng thái thời tiết thay đổi thành:', weather);
+    });
+
     let lastTime = performance.now();
-    let saveIntervalTimer = 0;
 
     function animate(now) {
       requestAnimationFrame(animate);
       const dt = Math.min((now - lastTime) / 1000, 0.1);
       lastTime = now;
 
-      state.time += dt;
+      // Cập nhật thời gian
+      const dayProgress = gameTime.update(dt, () => ui.update());
       
-      saveIntervalTimer += dt;
-      if (saveIntervalTimer > 10) {
-        saveGame();
-        saveIntervalTimer = 0;
-      }
-
-      const dayProgress = (state.time % state.dayLength) / state.dayLength;
-      const newDay = Math.floor(state.time / state.dayLength) + 1;
-      if (newDay !== state.day) {
-        state.day = newDay;
-        ui.update();
-        ui.showMessage(`Chào buổi sáng! Ngày ${state.day} ☀️`);
-        saveGame();
-      }
+      // Cập nhật thời tiết và tự động tương tác với ô đất nếu có mưa
+      weatherManager.update(dt, gameScene.plotsGroup.children.map(p => p.userData.plot).filter(Boolean), msg => ui.showMessage(msg));
 
       gameScene.updateDayNight(dayProgress);
-      for (const plot of state.plots) plot.update(dt);
+      
+      for (const plotObj of gameScene.plotsGroup.children) {
+        if (plotObj.userData && plotObj.userData.plot) {
+          plotObj.userData.plot.update(dt);
+        }
+      }
+      
       ui.update();
       gameScene.render();
     }
