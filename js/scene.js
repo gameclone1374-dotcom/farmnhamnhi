@@ -66,8 +66,8 @@ export class GameScene {
     );
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; this.scene.add(ground);
 
-    const path = new THREE.Mesh(new THREE.PlaneGeometry(4, 70), new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.9 }));
-    path.rotation.x = -Math.PI / 2; path.position.y = 0.01; path.receiveShadow = true; this.scene.add(path);
+    const path = new THREE.Mesh(new THREE.PlaneGeometry(4, 20), new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.9 }));
+    path.rotation.x = -Math.PI / 2; path.position.set(0, 0.01, 20); path.receiveShadow = true; this.scene.add(path);
 
     this._createFence(); this._createTrees(); this._createBarn();
   }

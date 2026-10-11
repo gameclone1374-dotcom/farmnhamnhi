@@ -1,13 +1,19 @@
 import * as THREE from 'three';
-import { CROPS, getPlotUnlockRequirement } from './config.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { CONFIG, CROPS, getPlotUnlockRequirement } from './config.js';
 import { state, spendMoney, addMoney, addExp, incrementHarvested, saveGame } from './state.js';
 
-// Định nghĩa màu sắc vật liệu cho các trạng thái đất
+const gltfLoader = new GLTFLoader();
+const objLoader = new OBJLoader();
+const fbxLoader = new FBXLoader();
+
 const matLocked = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9, transparent: true, opacity: 0.7 });
-const matNormal = new THREE.MeshStandardMaterial({ color: 0x6b4e31, roughness: 0.85 }); // Đất thường
-const matHoed = new THREE.MeshStandardMaterial({ color: 0x543820, roughness: 0.7 });   // Đất đã cuốc
-const matWatered = new THREE.MeshStandardMaterial({ color: 0x312214, roughness: 0.6 }); // Đất ẩm
-const matWithered = new THREE.MeshStandardMaterial({ color: 0x42352b, roughness: 0.9 });// Đất khô héo
+const matNormal = new THREE.MeshStandardMaterial({ color: 0x6b4e31, roughness: 0.85 });
+const matHoed = new THREE.MeshStandardMaterial({ color: 0x543820, roughness: 0.7 });
+const matWatered = new THREE.MeshStandardMaterial({ color: 0x312214, roughness: 0.6 });
+const matWithered = new THREE.MeshStandardMaterial({ color: 0x42352b, roughness: 0.9 });
 
 export class Plot {
   constructor(x, z, ix, iz, plotSize, parentGroup, onMessage) {
@@ -59,10 +65,7 @@ export class Plot {
   }
 
   hoe() {
-    if (!this.unlocked) {
-      this.unlockPlot();
-      return false;
-    }
+    if (!this.unlocked) { this.unlockPlot(); return false; }
     if (this.state === 'normal' || this.state === 'withered') {
       this.state = 'hoed';
       this.mesh.material = matHoed.clone();
@@ -76,18 +79,9 @@ export class Plot {
   }
 
   plant(cropType) {
-    if (!this.unlocked) {
-      this.unlockPlot();
-      return false;
-    }
-    if (this.state === 'normal') {
-      this.onMessage('Hãy dùng cuốc (⛏️) làm xốp đất trước!');
-      return false;
-    }
-    if (this.state !== 'hoed') { 
-      this.onMessage('Ô đất không sẵn sàng để trồng!'); 
-      return false; 
-    }
+    if (!this.unlocked) { this.unlockPlot(); return false; }
+    if (this.state === 'normal') { this.onMessage('Hãy dùng cuốc (⛏️) làm xốp đất trước!'); return false; }
+    if (this.state !== 'hoed') { this.onMessage('Ô đất không sẵn sàng để trồng!'); return false; }
     
     const crop = CROPS[cropType];
     if (!crop) return false;
@@ -133,9 +127,7 @@ export class Plot {
     const leveledUp = addExp(crop.exp);
     
     this.onMessage(`+${crop.sell}$ và +${crop.exp} EXP từ ${crop.name}! 🎉`);
-    if (leveledUp) {
-      this.onMessage(`🌟 CHÚC MỪNG BẠN LÊN LEVEL ${state.level}! 🌟`);
-    }
+    if (leveledUp) this.onMessage(`🌟 CHÚC MỪNG BẠN LÊN LEVEL ${state.level}! 🌟`);
 
     this.resetToNormal();
     saveGame();
@@ -155,7 +147,6 @@ export class Plot {
 
   update(dt) {
     if (!this.unlocked || this.state !== 'planted') return;
-    
     const crop = CROPS[this.cropType];
     
     if (this.watered) {
@@ -171,7 +162,6 @@ export class Plot {
         this.updateCropVisual(); 
       }
     } else {
-      // Đất khô cằn sau 15 giây không tưới
       this.dryTimer += dt;
       if (this.dryTimer > 15 && this.state !== 'withered') {
         this.state = 'withered';
@@ -218,7 +208,10 @@ export class Plot {
       const c = this.cropGroup.children[0];
       this.cropGroup.remove(c);
       if (c.geometry) c.geometry.dispose();
-      if (c.material) c.material.dispose();
+      if (c.material) {
+        if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+        else c.material.dispose();
+      }
     }
   }
 
@@ -226,9 +219,39 @@ export class Plot {
     this.clearCropVisual();
     if (!this.cropType || this.state === 'withered') return;
     const crop = CROPS[this.cropType];
-    const color = new THREE.Color(crop.color);
-    const stage = this.stage, maxStage = crop.stages;
 
+    const format = crop.format || 'glb';
+    const folder = CONFIG.assetsPath[format] || CONFIG.assetsPath.glb;
+    const fileUrl = folder + crop.modelName + '.' + format;
+
+    const scaleFactor = 0.4 + (this.stage / crop.stages) * 0.6;
+
+    if (format === 'glb') {
+      gltfLoader.load(fileUrl, (gltf) => {
+        const model = gltf.scene;
+        model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        model.traverse(node => { if (node.isMesh) node.castShadow = true; });
+        this.cropGroup.add(model);
+      }, undefined, () => { this._createFallbackVisual(crop, this.stage, crop.stages); });
+    } else if (format === 'obj') {
+      objLoader.load(fileUrl, (obj) => {
+        obj.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        obj.traverse(node => { if (node.isMesh) node.castShadow = true; });
+        this.cropGroup.add(obj);
+      }, undefined, () => { this._createFallbackVisual(crop, this.stage, crop.stages); });
+    } else if (format === 'fbx') {
+      fbxLoader.load(fileUrl, (fbx) => {
+        fbx.scale.set(scaleFactor * 0.01, scaleFactor * 0.01, scaleFactor * 0.01); // FBX thường có scale lớn
+        fbx.traverse(node => { if (node.isMesh) node.castShadow = true; });
+        this.cropGroup.add(fbx);
+      }, undefined, () => { this._createFallbackVisual(crop, this.stage, crop.stages); });
+    } else {
+      this._createFallbackVisual(crop, this.stage, crop.stages);
+    }
+  }
+
+  _createFallbackVisual(crop, stage, maxStage) {
+    const color = new THREE.Color(crop.color);
     if (stage === 0) {
       const sprout = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.25, 5), new THREE.MeshStandardMaterial({ color: 0x4a7c3f }));
       sprout.position.y = 0.12; sprout.castShadow = true;
@@ -245,40 +268,36 @@ export class Plot {
         this.cropGroup.add(leaf);
       }
     } else {
-      this._createMature(crop, color, maxStage);
-    }
-  }
-
-  _createMature(crop, color, maxStage) {
-    const height = 0.9 + (maxStage > 4 ? 0.3 : 0);
-    if (crop.id === 'wheat') {
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, height, 6), new THREE.MeshStandardMaterial({ color: 0x3d7a37 }));
-      stem.position.y = height / 2; stem.castShadow = true; this.cropGroup.add(stem);
-      for (let i = 0; i < 5; i++) {
-        const head = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.35, 5), new THREE.MeshStandardMaterial({ color }));
-        head.position.set(Math.sin(i * 1.2) * 0.15, height + 0.1, Math.cos(i * 1.2) * 0.15);
-        head.castShadow = true; this.cropGroup.add(head);
+      const height = 0.9 + (maxStage > 4 ? 0.3 : 0);
+      if (crop.id === 'wheat') {
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, height, 6), new THREE.MeshStandardMaterial({ color: 0x3d7a37 }));
+        stem.position.y = height / 2; stem.castShadow = true; this.cropGroup.add(stem);
+        for (let i = 0; i < 5; i++) {
+          const head = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.35, 5), new THREE.MeshStandardMaterial({ color }));
+          head.position.set(Math.sin(i * 1.2) * 0.15, height + 0.1, Math.cos(i * 1.2) * 0.15);
+          head.castShadow = true; this.cropGroup.add(head);
+        }
+      } else if (crop.id === 'carrot') {
+        const root = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.45, 6), new THREE.MeshStandardMaterial({ color }));
+        root.position.y = 0.15; root.rotation.x = Math.PI; root.castShadow = true; this.cropGroup.add(root);
+        const top = new THREE.Mesh(new THREE.SphereGeometry(0.2, 6, 4), new THREE.MeshStandardMaterial({ color: 0x4a9c4a }));
+        top.position.y = 0.45; top.scale.y = 0.6; this.cropGroup.add(top);
+      } else if (crop.id === 'tomato') {
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, height, 6), new THREE.MeshStandardMaterial({ color: 0x3d7a37 }));
+        stem.position.y = height / 2; stem.castShadow = true; this.cropGroup.add(stem);
+        for (let i = 0; i < 4; i++) {
+          const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshStandardMaterial({ color }));
+          fruit.position.set(Math.sin(i * 1.6) * 0.22, height * 0.6 + (i % 2) * 0.2, Math.cos(i * 1.6) * 0.22);
+          fruit.castShadow = true; this.cropGroup.add(fruit);
+        }
+        const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.25, 6, 4), new THREE.MeshStandardMaterial({ color: 0x3d8b3d }));
+        leaf.position.y = height + 0.1; leaf.scale.y = 0.4; this.cropGroup.add(leaf);
+      } else if (crop.id === 'pumpkin') {
+        const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.45, 10, 8), new THREE.MeshStandardMaterial({ color }));
+        fruit.position.y = 0.4; fruit.scale.y = 0.8; fruit.castShadow = true; this.cropGroup.add(fruit);
+        const stemTop = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.2, 5), new THREE.MeshStandardMaterial({ color: 0x3d2b1f }));
+        stemTop.position.y = 0.75; this.cropGroup.add(stemTop);
       }
-    } else if (crop.id === 'carrot') {
-      const root = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.45, 6), new THREE.MeshStandardMaterial({ color }));
-      root.position.y = 0.15; root.rotation.x = Math.PI; root.castShadow = true; this.cropGroup.add(root);
-      const top = new THREE.Mesh(new THREE.SphereGeometry(0.2, 6, 4), new THREE.MeshStandardMaterial({ color: 0x4a9c4a }));
-      top.position.y = 0.45; top.scale.y = 0.6; this.cropGroup.add(top);
-    } else if (crop.id === 'tomato') {
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, height, 6), new THREE.MeshStandardMaterial({ color: 0x3d7a37 }));
-      stem.position.y = height / 2; stem.castShadow = true; this.cropGroup.add(stem);
-      for (let i = 0; i < 4; i++) {
-        const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshStandardMaterial({ color }));
-        fruit.position.set(Math.sin(i * 1.6) * 0.22, height * 0.6 + (i % 2) * 0.2, Math.cos(i * 1.6) * 0.22);
-        fruit.castShadow = true; this.cropGroup.add(fruit);
-      }
-      const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.25, 6, 4), new THREE.MeshStandardMaterial({ color: 0x3d8b3d }));
-      leaf.position.y = height + 0.1; leaf.scale.y = 0.4; this.cropGroup.add(leaf);
-    } else if (crop.id === 'pumpkin') {
-      const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.45, 10, 8), new THREE.MeshStandardMaterial({ color }));
-      fruit.position.y = 0.4; fruit.scale.y = 0.8; fruit.castShadow = true; this.cropGroup.add(fruit);
-      const stemTop = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.2, 5), new THREE.MeshStandardMaterial({ color: 0x3d2b1f }));
-      stemTop.position.y = 0.75; this.cropGroup.add(stemTop);
     }
   }
 }
