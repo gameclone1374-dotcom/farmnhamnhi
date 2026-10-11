@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Nông Trại 3D - Modular Structure</title>
+  <!-- Liên kết file CSS từ thư mục css/ -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="game-container">
+    <div id="loading">
+      <div class="loader"></div>
+      <div class="loading-text">Đang tải Nông Trại 3D...</div>
+    </div>
+    <div id="ui">
+      <div id="top-bar">
+        <div id="stats" class="panel">
+          <span>💰 <span id="money">100</span></span>
+          <span>🌱 <span id="harvested">0</span></span>
+          <span>⏱️ Ngày <span id="day">1</span></span>
+        </div>
+        <div id="tools" class="panel">
+          <button class="tool-btn active" data-tool="plant">🌱 Trồng</button>
+          <button class="tool-btn" data-tool="water">💧 Tưới</button>
+          <button class="tool-btn" data-tool="harvest">🧺 Thu</button>
+        </div>
+      </div>
+      <div id="instructions" class="panel">
+        <h3>🌾 Hướng dẫn</h3>
+        • Kéo để xoay camera<br>
+        • Chạm ô đất để tương tác<br>
+        • Trồng → Tưới → Thu hoạch
+      </div>
+      <div id="crop-info" class="panel">
+        <h4>Hạt giống</h4>
+        <div id="seed-list"></div>
+      </div>
+      <div id="message"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import { state, saveGame } from './js/state.js';
+    import { GameScene } from './js/scene.js';
+    import { UI } from './js/ui.js';
+    import { Input } from './js/input.js';
+
+    const container = document.getElementById('game-container');
+    const ui = new UI();
+    const gameScene = new GameScene(container, msg => ui.showMessage(msg));
+    new Input(gameScene.camera, gameScene.plotsGroup, gameScene.domElement);
+
+    let lastTime = performance.now();
+    let saveIntervalTimer = 0;
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+
+      state.time += dt;
+      
+      saveIntervalTimer += dt;
+      if (saveIntervalTimer > 10) {
+        saveGame();
+        saveIntervalTimer = 0;
+      }
+
+      const dayProgress = (state.time % state.dayLength) / state.dayLength;
+      const newDay = Math.floor(state.time / state.dayLength) + 1;
+      if (newDay !== state.day) {
+        state.day = newDay;
+        ui.update();
+        ui.showMessage(`Chào buổi sáng! Ngày ${state.day} ☀️`);
+        saveGame();
+      }
+
+      gameScene.updateDayNight(dayProgress);
+      for (const plot of state.plots) plot.update(dt);
+      ui.update();
+      gameScene.render();
+    }
+
+    window.addEventListener('resize', () => gameScene.onResize());
+    window.addEventListener('beforeunload', () => saveGame());
+
+    ui.hideLoading();
+    ui.update();
+    ui.showMessage('Chào mừng trở lại Nông Trại 3D! 🌾');
+    animate(performance.now());
+  </script>
+</body>
+</html>
